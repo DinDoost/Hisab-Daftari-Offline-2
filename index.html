@@ -1003,6 +1003,7 @@ function softTone(f1, f2, dur, wave){
   }catch(e){}
 }
 function playBell(){
+  try{ if(localStorage.getItem('hesab-snsave-dev') === 'off') return; }catch(e){}
   if(S.snSave === false) return;
   try{
     if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -1020,6 +1021,7 @@ function playBell(){
   }catch(e){}
 }
 function keyMode(){
+  try{ const dv = localStorage.getItem('hesab-keymode-dev'); if(dv) return dv === 'off' ? 'off' : 'on'; }catch(e){}
   if(S.keyMode) return S.keyMode === 'off' ? 'off' : 'on';
   return S.snd === false ? 'off' : 'on';
 }
@@ -4397,6 +4399,7 @@ document.addEventListener('click', async e => {
     case 'saveModeSet': {
       const on = el.dataset.v === 'on';
       S.snSave = on; save();
+      try{ localStorage.setItem('hesab-snsave-dev', on ? 'on' : 'off'); }catch(e){}
       if(on) playBell();
       closeSheet(); render(); break;
     }
@@ -4404,6 +4407,7 @@ document.addEventListener('click', async e => {
     case 'keyModeSet': {
       const m = el.dataset.v;
       S.keyMode = m; S.snd = m !== 'off'; save();
+      try{ localStorage.setItem('hesab-keymode-dev', m); }catch(e){}
       if(m === 'on') softTone(480, 640, 0.22, 'sine');
       closeSheet(); render(); break;
     }
@@ -4749,9 +4753,17 @@ document.addEventListener('change', async e => {
   try{ localStorage.setItem('hesab-before-restore', JSON.stringify({ at: new Date().toISOString(), data: S })); }catch(err){}
   const cur = b.data.cur || S.cur || 'toman';
   /* تنظیم صدا مال همین گوشی است؛ هنگام بازیابی از فایل پشتیبان تغییر نمی‌کند */
+  const archBefore = (S.archIds || []).slice();
   const keepSnd = { keyMode: S.keyMode, snd: S.snd, snSave: S.snSave };
   S = { ...b.data, cur, loggedIn:true, email:'' };
   Object.keys(keepSnd).forEach(k => { if(keepSnd[k] !== undefined) S[k] = keepSnd[k]; else delete S[k]; });
+  /* بایگانی مال همین گوشی است: مشتری‌هایی که اینجا بایگانی شده‌اند، بعد از بازیابی هم بایگانی بمانند */
+  {
+    const archNow = archBefore;
+    const exists = new Set();
+    (S.parties || []).forEach(p => (p.c || []).forEach(c => exists.add(c.id)));
+    S.archIds = archNow.filter(id => exists.has(id));
+  }
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(err){}
   if(b.notebooks){
     try{ localStorage.setItem('hesab-offline-nb-v1', JSON.stringify({ uid: cloudUser ? cloudUser.id : 'offline', nb: b.notebooks.nb || [], ny: b.notebooks.ny || [] })); }catch(err){}
