@@ -483,9 +483,9 @@ body:has(#main > .list), body:has(#main > .lg-scroll), body:has(#main > #nbRows)
 
 /* ردیف مشتریان: نام و مبلغ کوچک‌تر تا نام کامل‌تر دیده شود */
 #main:has(> .list) .cust-wrap .card .nm b{font-size:13px !important;max-width:100%}
-#main:has(> .list) .cust-wrap .card .nm small{font-size:11px !important}
+#main:has(> .list) .cust-wrap .card .nm small{font-size:11.3px !important;color:#2f3a4c !important;font-weight:600}
 #main:has(> .list) .cust-wrap .card .bal{font-size:12px !important}
-#main:has(> .list) .cust-wrap .card .bal-note{font-size:10px !important}
+#main:has(> .list) .cust-wrap .card .bal-note{font-size:10.2px !important;color:#2f3a4c !important;font-weight:600}
 #main:has(> .list) .cust-wrap .card{gap:8px}
 
 /* قالب «دخل و خرج شخصی»: بدون خط اطراف، رنگ یکدست با برنامه، متن درشت‌تر و فلش بزرگ‌تر */
@@ -4735,6 +4735,32 @@ function offCount(d){
   const cs = parties.flatMap(p => p.c || []);
   return { p: parties.length, c: cs.length, t: cs.reduce((n, c) => n + ((c.tx || []).length), 0) };
 }
+/* پنجرهٔ تأیید بازیابی با طراحی خود برنامه */
+function askRestoreConfirm(now, nw){
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.id = 'restoreConfirm';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:20px;font-family:Vazirmatn,Tahoma,sans-serif';
+    wrap.innerHTML = `
+      <div style="background:#fff;color:#1d2433;width:100%;max-width:360px;border-radius:24px;padding:26px 22px 20px;box-shadow:0 20px 44px rgba(0,0,0,.28);text-align:center">
+        <div style="width:58px;height:58px;margin:0 auto 14px;border-radius:50%;background:#e8f7ef;color:#1e9e62;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800">↻</div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:10px">بازیابی فایل پشتیبان</div>
+        <div style="font-size:14px;line-height:2;color:#4b5567;margin-bottom:22px">
+          این فایل پشتیبان در برنامه بازیابی می‌شود.<br>
+          اطلاعات فعلی قبل از بازیابی، جداگانه ذخیره خواهد شد.
+        </div>
+        <div style="display:flex;gap:12px">
+          <button id="rcCancel" style="flex:1;border:1.5px solid #d5dbe6;background:#fff;color:#4b5567;border-radius:16px;padding:13px 10px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">انصراف</button>
+          <button id="rcOk" style="flex:1;border:none;background:linear-gradient(135deg,#22b573,#1e9e62);color:#fff;border-radius:16px;padding:13px 10px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(30,158,98,.35)">تأیید و بازیابی</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    const done = v => { wrap.remove(); resolve(v); };
+    wrap.querySelector('#rcCancel').onclick = () => done(false);
+    wrap.querySelector('#rcOk').onclick = () => done(true);
+    wrap.addEventListener('click', e => { if(e.target === wrap) done(false); });
+  });
+}
 document.addEventListener('change', async e => {
   if(e.target.id !== 'off-file') return;
   const f = e.target.files && e.target.files[0];
@@ -4749,7 +4775,8 @@ document.addEventListener('change', async e => {
   const msg = 'پشتیبان: ' + nw.p + ' طرف حساب، ' + nw.c + ' مشتری، ' + nw.t + ' تراکنش\n' +
               'الان: ' + now.p + ' طرف حساب، ' + now.c + ' مشتری، ' + now.t + ' تراکنش\n\n' +
               'بازیابی شود؟ اطلاعات فعلی قبل از بازیابی جداگانه ذخیره می‌شود.';
-  if(!confirm(msg)) return;
+  const okRestore = await askRestoreConfirm(now, nw);
+  if(!okRestore) return;
   try{ localStorage.setItem('hesab-before-restore', JSON.stringify({ at: new Date().toISOString(), data: S })); }catch(err){}
   const cur = b.data.cur || S.cur || 'toman';
   /* تنظیم صدا مال همین گوشی است؛ هنگام بازیابی از فایل پشتیبان تغییر نمی‌کند */
@@ -4773,10 +4800,28 @@ document.addEventListener('change', async e => {
     NBCUR = null;
   }
   try{ localStorage.setItem('hesab-last-restore', new Date().toISOString()); }catch(err){}
-  alert('بازیابی انجام شد.');
+  showRestoreBanner();
   render();
 });
 
+/* پیام سبز بالای صفحه بعد از بازیابی؛ عدد ۵ تا ۱ را نشان می‌دهد و بعد پنهان می‌شود */
+function showRestoreBanner(){
+  let box = document.getElementById('restoreBanner');
+  if(!box){ box = document.createElement('div'); box.id = 'restoreBanner'; document.body.appendChild(box); }
+  box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#1e9e62;color:#fff;padding:14px 16px;text-align:center;font:600 15px Vazirmatn,Tahoma,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.2)';
+  let n = 5;
+  const draw = () => {
+    box.innerHTML = '<span>بازیابی با موفقیت انجام شد ✓</span>'
+      + ' <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin-right:6px;border-radius:50%;background:#fff;color:#1e9e62;font:800 14px Vazirmatn,Tahoma,sans-serif;vertical-align:middle">' + n + '</span>';
+  };
+  draw();
+  clearInterval(box._t);
+  box._t = setInterval(() => {
+    n--;
+    if(n <= 0){ clearInterval(box._t); box.remove(); return; }
+    draw();
+  }, 1000);
+}
 /* ---- پشتیبان‌گیری: همان قالب نسخهٔ آنلاین، پس هر دو فایل به هم بازیابی می‌شوند ---- */
 function showBackupAsk(){ BK_PANEL = 'ask'; render(); }
 function bkClose(){ if(!BK_PANEL) return; BK_PANEL = ''; render(); }
