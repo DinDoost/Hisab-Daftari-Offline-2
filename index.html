@@ -559,6 +559,12 @@ body:has(#main > .list), body:has(#main > .lg-scroll), body:has(#main > #nbRows)
 var BK_PANEL = '';
 const KEY = 'hesab-offline-v1';
 const OFFLINE_BUILD = true;
+/* تاریخ آخرین بروزرسانی برنامه؛ هر بار که فایل تغییر می‌کند این مقدار هم عوض می‌شود */
+const APP_BUILD_AT = '2026-11-25T12:00:00';
+function appBuildTxt(){
+  try{ return new Date(APP_BUILD_AT).toLocaleString('fa-IR-u-ca-persian', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' }); }
+  catch(e){ return APP_BUILD_AT; }
+}
 const supabaseClient = null;
 let cloudUser = null, cloudReady = false, cloudSyncTimer = null;
 let cloudSyncing = false, cloudSyncAgain = false;
@@ -1482,6 +1488,7 @@ function renderNow(){
         <button class="srow-b" data-a="keySoundOpen">صدای کلیدها: ${({on:'فعال', off:'خاموش'})[keyMode()]}</button>
         <button class="srow-b" data-a="saveSoundOpen">صدای ثبت و ویرایش: ${S.snSave === false ? 'خاموش' : 'فعال'}</button>
         ${S.pin ? '<button class="srow-b" data-a="pinToggle">غیرفعال کردن پین</button><button class="srow-b" data-a="pinChange">تغییر پین</button>' : '<button class="srow-b" data-a="pinActivate">فعال کردن پین</button>'}
+        <div class="srow-b" style="cursor:default;display:block;text-align:right"><span style="display:block;font-size:15px;font-weight:700">آخرین بروزرسانی برنامه</span><span style="display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:4px">${appBuildTxt()}</span></div>
       </div>
       </div>
 
@@ -4781,8 +4788,10 @@ document.addEventListener('change', async e => {
   const cur = b.data.cur || S.cur || 'toman';
   /* تنظیم صدا مال همین گوشی است؛ هنگام بازیابی از فایل پشتیبان تغییر نمی‌کند */
   const archBefore = (S.archIds || []).slice();
-  const keepSnd = { keyMode: S.keyMode, snd: S.snd, snSave: S.snSave };
+  /* پین و ایمیل و تنظیم صدا مال همین گوشی‌اند؛ بازیابی پشتیبان آن‌ها را پاک یا عوض نمی‌کند */
+  const keepSnd = { keyMode: S.keyMode, snd: S.snd, snSave: S.snSave, pin: S.pin, email: S.email };
   S = { ...b.data, cur, loggedIn:true, email:'' };
+  delete S.pin;
   Object.keys(keepSnd).forEach(k => { if(keepSnd[k] !== undefined) S[k] = keepSnd[k]; else delete S[k]; });
   /* بایگانی مال همین گوشی است: مشتری‌هایی که اینجا بایگانی شده‌اند، بعد از بازیابی هم بایگانی بمانند */
   {
