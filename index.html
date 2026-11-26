@@ -560,7 +560,38 @@ var BK_PANEL = '';
 const KEY = 'hesab-offline-v1';
 const OFFLINE_BUILD = true;
 /* تاریخ آخرین بروزرسانی برنامه؛ هر بار که فایل تغییر می‌کند این مقدار هم عوض می‌شود */
-const APP_BUILD_AT = '2026-11-25T12:00:00';
+const APP_BUILD_AT = '2026-11-25T06:00:00+03:30';
+/* وقتی نسخهٔ جدید APK نصب شود، یک بار پیام سبز بالای صفحه نشان داده می‌شود */
+function showBuildBanner(text){
+  let box = document.getElementById('buildBanner');
+  if(!box){ box = document.createElement('div'); box.id = 'buildBanner'; document.body.appendChild(box); }
+  box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#1e9e62;color:#fff;padding:14px 16px;text-align:center;font:600 15px Vazirmatn,Tahoma,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.2)';
+  box.textContent = text;
+  setTimeout(() => box.remove(), 5000);
+}
+function checkBuildBanner(){
+  try{
+    const seen = localStorage.getItem('hesab-build-seen');
+    if(seen !== APP_BUILD_AT){
+      if(seen) showBuildBanner('برنامه با نسخهٔ جدید بروز شد');
+      localStorage.setItem('hesab-build-seen', APP_BUILD_AT);
+    }
+  }catch(e){}
+}
+/* مصرف سقف داخلی: جمع داده‌های برنامه (مشتری‌ها، تراکنش‌ها، طرف حساب‌ها، دخل و خرج، دفترچه‌ها و یادداشت‌ها) */
+function bytesOfVal(v){ try{ return new Blob([typeof v === 'string' ? v : JSON.stringify(v)]).size; }catch(e){ return 0; } }
+function storageRowsHTML(){
+  let total = 0;
+  try{ total += bytesOfVal(S.parties || []); }catch(e){}
+  try{ total += bytesOfVal(S.ledger || []); }catch(e){}
+  try{ total += bytesOfVal(NB || []) + bytesOfVal(NY || []); }catch(e){}
+  const kb = (total / 1024).toLocaleString('fa-IR', { maximumFractionDigits: 1 });
+  return `<div class="srow-b" style="cursor:default;display:flex;justify-content:space-between;align-items:center;text-align:right">
+    <div><span style="display:block;font-size:15px;font-weight:700">مصرف سقف داخلی</span><span style="display:block;font-size:12px;color:var(--muted);margin-top:4px">همهٔ تراکنش‌ها، مشتری‌ها، طرف حساب‌ها، دخل و خرج و یادداشت‌ها</span></div>
+    <b style="font-size:16px;white-space:nowrap">${kb} کیلوبایت</b>
+  </div>
+  <button class="srow-b" onclick="render();showBuildBanner('مصرف سقف داخلی به‌روز شد')" style="cursor:pointer;display:block;text-align:center;margin-top:8px"><span style="font-size:14px;font-weight:700">به‌روزرسانی مصرف</span></button>`;
+}
 function appBuildTxt(){
   try{ return new Date(APP_BUILD_AT).toLocaleString('fa-IR-u-ca-persian', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' }); }
   catch(e){ return APP_BUILD_AT; }
@@ -1489,6 +1520,7 @@ function renderNow(){
         <button class="srow-b" data-a="saveSoundOpen">صدای ثبت و ویرایش: ${S.snSave === false ? 'خاموش' : 'فعال'}</button>
         ${S.pin ? '<button class="srow-b" data-a="pinToggle">غیرفعال کردن پین</button><button class="srow-b" data-a="pinChange">تغییر پین</button>' : '<button class="srow-b" data-a="pinActivate">فعال کردن پین</button>'}
         <div class="srow-b" style="cursor:default;display:block;text-align:right"><span style="display:block;font-size:15px;font-weight:700">آخرین بروزرسانی برنامه</span><span style="display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:4px">${appBuildTxt()}</span></div>
+        ${storageRowsHTML()}
       </div>
       </div>
 
@@ -3938,11 +3970,15 @@ document.addEventListener('click', async e => {
       else { LPSEL = null; render(); }
       break;
 
-        case 'lkKey':
+        case 'lkKey': {
+      const nowT = Date.now();
+      if(LK.lastKey === el.dataset.v && nowT - (LK.lastKeyT || 0) < 120) break;
+      LK.lastKey = el.dataset.v; LK.lastKeyT = nowT;
       if(LK.buf.length < lkMax() && !LK.busy){ LK.buf += el.dataset.v; LK.err = ''; }
       renderLock();
-      if(LK.buf.length >= lkMax() && !LK.busy){ LK.busy = true; const lkEl = document.getElementById('lock'); lkEl.classList.add('lk-busy'); setTimeout(() => { LK.busy = false; lkEl.classList.remove('lk-busy'); lkOk(); }, 450); }
+      if(LK.buf.length >= lkMax() && !LK.busy){ LK.busy = true; const lkEl = document.getElementById('lock'); lkEl.classList.add('lk-busy'); setTimeout(() => { LK.busy = false; lkEl.classList.remove('lk-busy'); lkOk(); }, 60); }
       break;
+    }
     case 'lkDel': if(!LK.busy){ LK.buf = LK.buf.slice(0, -1); renderLock(); } break;
     case 'lkOk': lkOk(); break;
     case 'authLogin': authLogin(); break;
@@ -4901,6 +4937,7 @@ document.getElementById('intro-go').addEventListener('click', function(){
   document.getElementById('intro').classList.add('hidden');
   window.scrollTo(0,0);
 });
+setTimeout(checkBuildBanner, 1500);
 </script>
 </body>
 </html>
